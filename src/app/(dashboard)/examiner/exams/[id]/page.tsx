@@ -150,15 +150,15 @@ export default function ExamDetailPage() {
 
     const d = await res.json();
     if (res.ok) {
-      toast("Question created and added to exam!", "success");
-      setShowCreateSpot(false);
-      setSpotQ({
+      toast(`Question added! (${questions.length + 1} total). Ready for next question.`, "success");
+      // Keep creator open for rapid question authoring!
+      setSpotQ(prev => ({
         text: "",
-        type: "MCQ_SINGLE",
-        category: "",
-        topic: "",
-        difficulty: "MEDIUM",
-        marks: 5,
+        type: prev.type,
+        category: prev.category,
+        topic: prev.topic,
+        difficulty: prev.difficulty,
+        marks: prev.marks,
         explanation: "",
         options: [
           { text: "", isCorrect: true },
@@ -166,7 +166,7 @@ export default function ExamDetailPage() {
           { text: "", isCorrect: false },
           { text: "", isCorrect: false },
         ],
-      });
+      }));
       load();
     } else {
       toast(d.error || "Failed to create question", "error");
@@ -550,13 +550,18 @@ export default function ExamDetailPage() {
                 )}
 
                 {/* Submit Actions */}
-                <div className="flex items-center gap-3 pt-3 border-t">
-                  <Button onClick={handleCreateSpot} loading={spotLoading} className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="h-4 w-4 mr-1.5" /> Create & Add to Exam
-                  </Button>
-                  <Button variant="outline" type="button" onClick={() => setShowCreateSpot(false)}>
-                    Cancel
-                  </Button>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t">
+                  <div className="flex items-center gap-3">
+                    <Button onClick={handleCreateSpot} loading={spotLoading} className="bg-blue-600 hover:bg-blue-700">
+                      <Plus className="h-4 w-4 mr-1.5" /> Create & Add Another
+                    </Button>
+                    <Button variant="outline" type="button" onClick={() => setShowCreateSpot(false)}>
+                      Done Adding Questions
+                    </Button>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    Form stays open ready for the next question
+                  </span>
                 </div>
               </CardContent>
             </Card>
