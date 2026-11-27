@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { getJwtSecret } from "@/lib/jwt-secret";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "examina-secure-secret-key-2024-competition"
-);
-
-const publicPaths = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/verify"];
+const publicPaths = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/verify", "/api/verify"];
 const roleDashboards: Record<string, string> = {
   ADMIN: "/admin",
   EXAMINER: "/examiner",
@@ -29,7 +26,7 @@ export async function middleware(request: NextRequest) {
       const token = request.cookies.get("session")?.value;
       if (token) {
         try {
-          const { payload } = await jwtVerify(token, JWT_SECRET);
+          const { payload } = await jwtVerify(token, getJwtSecret());
           const role = payload.role as string;
           const dashboard = roleDashboards[role] || "/candidate";
           return NextResponse.redirect(new URL(dashboard, request.url));
@@ -48,7 +45,7 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJwtSecret());
     const role = payload.role as string;
 
     // Role-based access control

@@ -127,3 +127,18 @@ The application will be running at `http://localhost:3000`.
 ```bash
 npm run dev
 ```
+
+
+## Setup
+
+```bash
+npm install
+cp .env.example .env.local   # on Windows: copy .env.example .env.local
+```
+
+Open `.env.local` and set `JWT_SECRET` to a long random string
+(generate one with `openssl rand -base64 32`). Then:
+
+```bash
+npm run dev
+```

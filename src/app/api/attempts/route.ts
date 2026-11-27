@@ -14,11 +14,18 @@ function shuffleArray<T>(arr: T[]): T[] {
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
-  if (!session || session.role !== "CANDIDATE") return Response.json({ error: "Forbidden" }, { status: 403 });
+  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
   const { examId, isSandbox } = body;
   if (!examId) return Response.json({ error: "Exam ID required" }, { status: 400 });
+
+  if (!isSandbox && session.role !== "CANDIDATE") {
+    return Response.json({ error: "Forbidden: Candidates only" }, { status: 403 });
+  }
+  if (isSandbox && session.role !== "EXAMINER" && session.role !== "ADMIN") {
+    return Response.json({ error: "Forbidden: Examiners only for sandbox" }, { status: 403 });
+  }
 
   const db = getDb();
   const exam = db.prepare("SELECT * FROM exams WHERE id = ?").get(examId) as any;
