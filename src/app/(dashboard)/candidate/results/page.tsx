@@ -65,16 +65,10 @@ export default function CandidateResultsPage() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+                      <div className="flex items-center gap-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" /> {exam.duration} mins
                         </span>
-                        <span>Total Exam Marks: {exam.total_marks}</span>
-                        {exam.passing_marks != null && (
-                          <span className="text-gray-600 font-medium">
-                            Pass Mark: {exam.passing_marks}
-                          </span>
-                        )}
                       </div>
                     </div>
 
