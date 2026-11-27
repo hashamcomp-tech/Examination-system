@@ -84,6 +84,16 @@ export default function CandidateResultDetailPage() {
     window.open(`/api/reports/${attempt.id}/pdf`, "_blank");
   };
 
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? dateStr : d.toLocaleString();
+    } catch {
+      return dateStr;
+    }
+  };
+
   const mcqCount = answers?.filter((a: any) => a.question_type !== "WRITTEN").length || 0;
   const writtenCount = answers?.filter((a: any) => a.question_type === "WRITTEN").length || 0;
 
@@ -113,7 +123,7 @@ export default function CandidateResultDetailPage() {
             <div>
               <CardTitle className="text-2xl font-bold text-gray-900">{exam?.title}</CardTitle>
               <p className="text-sm text-gray-500 mt-1">
-                Completed on {attempt?.submitted_at ? new Date(attempt.submitted_at).toLocaleDateString(undefined, { dateStyle: 'long', timeStyle: 'short' }) : "N/A"}
+                Completed on {formatDate(attempt?.submitted_at)}
               </p>
             </div>
             <div className="flex items-center gap-2">

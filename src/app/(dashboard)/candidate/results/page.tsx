@@ -24,7 +24,7 @@ export default function CandidateResultsPage() {
                     <h3 className="font-semibold text-gray-900">{exam.title}</h3>
                     <p className="text-sm text-gray-500 mt-1">{exam.total_marks} marks · {exam.duration} min</p>
                   </div>
-                  <Button size="sm" variant="outline">View Result</Button>
+                  <Button size="sm" variant="outline" className="pointer-events-none">View Result</Button>
                 </CardContent>
               </Card>
             </Link>
