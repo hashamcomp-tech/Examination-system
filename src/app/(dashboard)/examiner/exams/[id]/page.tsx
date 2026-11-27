@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import {
   Save, Send, Trash2, Plus, Eye, Users, Settings, BookOpen,
-  CheckCircle2, HelpCircle, FileText, CheckSquare, Radio, Sparkles, ChevronDown, ChevronUp
+  CheckCircle2, HelpCircle, FileText, CheckSquare, Radio, Sparkles, ChevronDown, ChevronUp, School
 } from "lucide-react";
 
 export default function ExamDetailPage() {
@@ -23,6 +24,7 @@ export default function ExamDetailPage() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [bankQuestions, setBankQuestions] = useState<any[]>([]);
+  const [classrooms, setClassrooms] = useState<any[]>([]);
   const [tab, setTab] = useState("details");
   const [enrollEmail, setEnrollEmail] = useState("");
   const [saving, setSaving] = useState(false);
@@ -55,6 +57,9 @@ export default function ExamDetailPage() {
 
   useEffect(() => { load(); }, [id]);
   useEffect(() => {
+    fetch("/api/classrooms").then(r => r.json()).then(d => setClassrooms(d.classrooms || []));
+  }, []);
+  useEffect(() => {
     if (tab === "questions") {
       fetch("/api/questions").then(r => r.json()).then(d => setBankQuestions(d.questions || []));
     }
@@ -73,6 +78,7 @@ export default function ExamDetailPage() {
         randomizeQuestions: !!exam.randomize_questions, randomizeOptions: !!exam.randomize_options,
         multipleSelectGrading: exam.multiple_select_grading,
         negativeMarkingPenalty: exam.negative_marking_penalty, maxAttempts: exam.max_attempts,
+        classroomId: exam.classroom_id || null,
       }),
     });
     if (res.ok) toast("Exam saved!", "success"); else toast("Save failed", "error");
@@ -299,7 +305,21 @@ export default function ExamDetailPage() {
                 <Input type="datetime-local" value={exam.scheduled_end?.slice(0, 16) || ""} onChange={e => update("scheduled_end", e.target.value ? new Date(e.target.value).toISOString() : null)} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Target Classroom (Restricted Access)</label>
+                <Select value={exam.classroom_id || ""} onChange={e => update("classroom_id", e.target.value || null)}>
+                  <option value="">-- No Restriction (Public / All Enrolled) --</option>
+                  {classrooms.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} (Code: {c.code})
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  When assigned, only students who join this classroom can see and take this exam.
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Multi-Select Grading</label>
                 <Select value={exam.multiple_select_grading} onChange={e => update("multiple_select_grading", e.target.value)}>
@@ -308,14 +328,16 @@ export default function ExamDetailPage() {
                   <option value="NEGATIVE">Negative Marking</option>
                 </Select>
               </div>
-              <div className="flex items-center gap-3 pt-6">
-                <input type="checkbox" id="rq" checked={!!exam.randomize_questions} onChange={e => update("randomize_questions", e.target.checked ? 1 : 0)} className="h-4 w-4 rounded" />
-                <label htmlFor="rq" className="text-sm text-gray-700">Randomize Questions</label>
-              </div>
-              <div className="flex items-center gap-3 pt-6">
-                <input type="checkbox" id="ro" checked={!!exam.randomize_options} onChange={e => update("randomize_options", e.target.checked ? 1 : 0)} className="h-4 w-4 rounded" />
-                <label htmlFor="ro" className="text-sm text-gray-700">Randomize Options</label>
-              </div>
+            </div>
+            <div className="flex gap-6 pt-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="rq" checked={!!exam.randomize_questions} onChange={e => update("randomize_questions", e.target.checked ? 1 : 0)} className="h-4 w-4 rounded text-blue-600" />
+                <span className="text-sm text-gray-700">Randomize Questions</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="ro" checked={!!exam.randomize_options} onChange={e => update("randomize_options", e.target.checked ? 1 : 0)} className="h-4 w-4 rounded text-blue-600" />
+                <span className="text-sm text-gray-700">Randomize Options</span>
+              </label>
             </div>
           </CardContent></Card>
         </div>
@@ -697,7 +719,24 @@ export default function ExamDetailPage() {
 
       {/* Candidates Tab */}
       {tab === "candidates" && (
-        <Card><CardHeader>
+        <div className="space-y-4">
+          {exam.classroom_id && (
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
+              <div className="flex items-center gap-2">
+                <School className="h-5 w-5 text-blue-600 shrink-0" />
+                <span>
+                  <strong>Classroom Restricted Exam:</strong> Assigned to classroom{" "}
+                  <strong>{classrooms.find(c => c.id === exam.classroom_id)?.name || "Classroom"}</strong>.
+                  All students in this classroom are automatically enrolled.
+                </span>
+              </div>
+              <Link href={`/examiner/classrooms/${exam.classroom_id}`} className="font-semibold text-blue-700 hover:text-blue-800 underline shrink-0">
+                Manage Class & Code →
+              </Link>
+            </div>
+          )}
+
+          <Card><CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Enrolled Candidates ({enrollments.length})</CardTitle>
             <div className="flex gap-2">
@@ -723,6 +762,7 @@ export default function ExamDetailPage() {
             </table>
           </CardContent>
         </Card>
+        </div>
       )}
 
       {/* Preview Tab */}

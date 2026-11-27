@@ -61,7 +61,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const body = await request.json();
   const fields = ["title", "description", "instructions", "duration", "total_marks", "passing_marks",
     "scheduled_start", "scheduled_end", "randomize_questions", "randomize_options",
-    "multiple_select_grading", "negative_marking_penalty", "max_attempts", "status"];
+    "multiple_select_grading", "negative_marking_penalty", "max_attempts", "status", "classroom_id"];
 
   const updates: string[] = [];
   const values: any[] = [];
@@ -80,6 +80,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     updates.push("updated_at = datetime('now')");
     values.push(id);
     db.prepare(`UPDATE exams SET ${updates.join(", ")} WHERE id = ?`).run(...values);
+  }
+
+  // If classroom changed and exam is already published, enroll members
+  if (body.classroomId) {
+    const { v4: uuid } = await import("uuid");
+    const members = db.prepare("SELECT user_id FROM classroom_members WHERE classroom_id = ?").all(body.classroomId) as any[];
+    const enrollStmt = db.prepare("INSERT OR IGNORE INTO enrollments (id, exam_id, user_id) VALUES (?, ?, ?)");
+    for (const m of members) {
+      enrollStmt.run(uuid(), id, m.user_id);
+    }
   }
 
   const updated = db.prepare("SELECT * FROM exams WHERE id = ?").get(id);

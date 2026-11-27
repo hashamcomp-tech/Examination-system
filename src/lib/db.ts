@@ -195,7 +195,29 @@ function initializeDatabase(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       expires_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS classrooms (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      code TEXT UNIQUE NOT NULL,
+      description TEXT,
+      creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS classroom_members (
+      id TEXT PRIMARY KEY,
+      classroom_id TEXT NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(classroom_id, user_id)
+    );
   `);
+
+  try {
+    db.exec("ALTER TABLE exams ADD COLUMN classroom_id TEXT REFERENCES classrooms(id)");
+  } catch {}
 
   // Seed default admin user if not exists
   const admin = db.prepare("SELECT id FROM users WHERE email = ?").get("admin@examina.com");

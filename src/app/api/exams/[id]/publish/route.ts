@@ -29,5 +29,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   db.prepare("UPDATE exams SET status = 'PUBLISHED', updated_at = datetime('now') WHERE id = ?").run(id);
 
+  // If exam is assigned to a classroom, auto-enroll all students of that classroom
+  if (exam.classroom_id) {
+    const { v4: uuid } = await import("uuid");
+    const members = db.prepare("SELECT user_id FROM classroom_members WHERE classroom_id = ?").all(exam.classroom_id) as any[];
+    const enrollStmt = db.prepare("INSERT OR IGNORE INTO enrollments (id, exam_id, user_id) VALUES (?, ?, ?)");
+    for (const m of members) {
+      enrollStmt.run(uuid(), id, m.user_id);
+    }
+  }
+
   return Response.json({ message: "Exam published successfully" });
 }

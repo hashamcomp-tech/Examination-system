@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Settings, FileText, BookOpen,
   Monitor, BarChart3, LogOut, Menu, X, ClipboardList,
   GraduationCap, AlertTriangle, HelpCircle, ChevronLeft,
-  UploadCloud, PieChart,
+  UploadCloud, PieChart, School,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -24,6 +24,7 @@ const navItems: Record<string, { label: string; href: string; icon: React.Elemen
   ],
   EXAMINER: [
     { label: "Dashboard", href: "/examiner", icon: LayoutDashboard },
+    { label: "Classrooms", href: "/examiner/classrooms", icon: School },
     { label: "Exams", href: "/examiner/exams", icon: FileText },
     { label: "Question Bank", href: "/examiner/questions", icon: BookOpen },
     { label: "Analytics", href: "/examiner/questions/analytics", icon: PieChart },
@@ -34,6 +35,7 @@ const navItems: Record<string, { label: string; href: string; icon: React.Elemen
   ],
   CANDIDATE: [
     { label: "Dashboard", href: "/candidate", icon: LayoutDashboard },
+    { label: "Classrooms", href: "/candidate/classrooms", icon: School },
     { label: "My Exams", href: "/candidate/exams", icon: ClipboardList },
     { label: "Results", href: "/candidate/results", icon: GraduationCap },
     { label: "Disputes", href: "/candidate/disputes", icon: HelpCircle },

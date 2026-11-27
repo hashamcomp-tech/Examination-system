@@ -12,11 +12,16 @@ export default function NewExamPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [classrooms, setClassrooms] = useState<any[]>([]);
   const [form, setForm] = useState({
     title: "", description: "", instructions: "", duration: 60, totalMarks: 100,
     passingMarks: 40, maxAttempts: 1, multipleSelectGrading: "ALL_OR_NOTHING",
-    randomizeQuestions: false, randomizeOptions: false,
+    randomizeQuestions: false, randomizeOptions: false, classroomId: "",
   });
+
+  React.useEffect(() => {
+    fetch("/api/classrooms").then(r => r.json()).then(d => setClassrooms(d.classrooms || []));
+  }, []);
 
   const update = (f: string, v: any) => setForm(p => ({ ...p, [f]: v }));
 
@@ -68,6 +73,20 @@ export default function NewExamPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Max Attempts</label>
               <Input type="number" value={form.maxAttempts} onChange={e => update("maxAttempts", parseInt(e.target.value))} min={1} />
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Target Classroom (Optional)</label>
+            <Select value={form.classroomId} onChange={e => update("classroomId", e.target.value)}>
+              <option value="">-- No Restriction (Public / All Enrolled) --</option>
+              {classrooms.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name} (Code: {c.code})
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-gray-500 mt-1">
+              If selected, only students who have joined this classroom will be able to see and solve this exam.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Multi-Select Grading</label>

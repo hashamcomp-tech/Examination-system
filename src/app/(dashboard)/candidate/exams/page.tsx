@@ -26,7 +26,12 @@ export default function CandidateExamsPage() {
                       {exam.duration} min · {exam.total_marks} marks · Attempts: {exam.my_attempts || 0}/{exam.max_attempts}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
+                    {exam.classroom_name && (
+                      <Badge variant="outline" className="border-blue-200 text-blue-800 bg-blue-50/80 font-medium text-xs">
+                        Class: {exam.classroom_name}
+                      </Badge>
+                    )}
                     <Badge variant={exam.status === "COMPLETED" ? "purple" : exam.status === "ONGOING" ? "success" : "default"}>{exam.status}</Badge>
                     {exam.enrollment_status && <Badge variant="secondary">{exam.enrollment_status}</Badge>}
                   </div>
