@@ -86,11 +86,9 @@ export async function POST(request: NextRequest) {
     "SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY order_index"
   ).all(examId) as any[];
 
-  // Randomize if needed
+  // Always randomize questions per attempt so no two exams have the same question order
   let questionOrder: string[] = examQuestions.map((q: any) => q.id);
-  if (exam.randomize_questions) {
-    questionOrder = shuffleArray(questionOrder);
-  }
+  questionOrder = shuffleArray(questionOrder);
 
   const attemptId = uuid();
   const attemptNumber = ((db.prepare(

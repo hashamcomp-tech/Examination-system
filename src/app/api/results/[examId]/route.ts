@@ -2,6 +2,20 @@ import { NextRequest } from "next/server";
 import getDb from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
+function seededShuffle<T>(arr: T[], seedStr: string): T[] {
+  let seed = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    seed = (seed * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+  const s = [...arr];
+  for (let i = s.length - 1; i > 0; i--) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const j = seed % (i + 1);
+    [s[i], s[j]] = [s[j], s[i]];
+  }
+  return s;
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ examId: string }> }) {
   const session = await getSession();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -27,10 +41,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       JOIN exam_questions eq ON a.exam_question_id = eq.id
       JOIN questions q ON eq.question_id = q.id 
       WHERE a.attempt_id = ?
-      ORDER BY eq.order_index ASC
     `).all(attempt.id) as any[];
 
-    const answers = rawAnswers.map(ans => {
+    // Sort answers matching candidate's exact shuffled exam question sequence
+    let sortedAnswers = rawAnswers;
+    if (attempt.question_order) {
+      try {
+        const orderIds: string[] = JSON.parse(attempt.question_order);
+        if (Array.isArray(orderIds) && orderIds.length > 0) {
+          sortedAnswers = [...rawAnswers].sort((x, y) => {
+            const idxX = orderIds.indexOf(x.exam_question_id);
+            const idxY = orderIds.indexOf(y.exam_question_id);
+            if (idxX === -1) return 1;
+            if (idxY === -1) return -1;
+            return idxX - idxY;
+          });
+        }
+      } catch {}
+    }
+
+    const answers = sortedAnswers.map(ans => {
       let selectedOptionIds: string[] = [];
       try {
         if (ans.selected_option_ids) {
@@ -43,9 +73,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
       let options: any[] = [];
       if (ans.question_type !== 'WRITTEN') {
-        options = db.prepare(
+        const rawOpts = db.prepare(
           "SELECT id, text, is_correct, order_index FROM question_options WHERE question_id = ? ORDER BY order_index ASC"
-        ).all(ans.question_id);
+        ).all(ans.question_id) as any[];
+        // Shuffle options with same attempt seed so candidate results reflect exact options order seen during test
+        options = seededShuffle(rawOpts, `${attempt.id}_${ans.question_id}`);
       }
 
       return {

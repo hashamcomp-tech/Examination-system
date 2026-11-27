@@ -16,7 +16,7 @@ export default function NewExamPage() {
   const [form, setForm] = useState({
     title: "", description: "", instructions: "", duration: 60, totalMarks: 100,
     passingMarks: 40, maxAttempts: 1, multipleSelectGrading: "ALL_OR_NOTHING",
-    randomizeQuestions: false, randomizeOptions: false, classroomId: "",
+    randomizeQuestions: true, randomizeOptions: true, classroomId: "",
   });
 
   React.useEffect(() => {

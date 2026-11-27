@@ -2,6 +2,20 @@ import { NextRequest } from "next/server";
 import getDb from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
+function seededShuffle<T>(arr: T[], seedStr: string): T[] {
+  let seed = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    seed = (seed * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+  const s = [...arr];
+  for (let i = s.length - 1; i > 0; i--) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const j = seed % (i + 1);
+    [s[i], s[j]] = [s[j], s[i]];
+  }
+  return s;
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,14 +60,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ? questionOrder.map((eqId: string) => examQuestions.find((q: any) => q.id === eqId)).filter(Boolean)
     : examQuestions;
 
-  // Add options
+  // Add options (always shuffle options uniquely per attempt + question so no two exams have the same choices order)
   for (const q of orderedQuestions) {
     let options = db.prepare("SELECT * FROM question_options WHERE question_id = ? ORDER BY order_index").all(q.question_id) as any[];
-    // Randomize options if exam setting enabled and attempt is in progress
-    if (exam.randomize_options && attempt.status === "IN_PROGRESS") {
-      // Use attempt ID + question ID as seed for consistent randomization
-      options = [...options].sort(() => 0.5 - Math.random());
-    }
+    // Shuffled with deterministic attempt seed: unique to this student attempt, but stable across page reloads
+    options = seededShuffle(options, `${attempt.id}_${q.question_id}`);
+    
     // Hide correct answers during active attempt
     if (attempt.status === "IN_PROGRESS" || (!exam.results_published && session.role === "CANDIDATE")) {
       options = options.map((o: any) => ({ id: o.id, text: o.text, order_index: o.order_index, question_id: o.question_id }));
