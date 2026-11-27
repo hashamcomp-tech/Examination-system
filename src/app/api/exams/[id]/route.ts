@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import getDb from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { computeExamStatus } from "../route";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -10,6 +11,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const db = getDb();
   const exam = db.prepare("SELECT * FROM exams WHERE id = ?").get(id) as any;
   if (!exam) return Response.json({ error: "Exam not found" }, { status: 404 });
+
+  const computedStatus = computeExamStatus(exam);
+  if (computedStatus !== exam.status) {
+    db.prepare("UPDATE exams SET status = ? WHERE id = ?").run(computedStatus, id);
+    exam.status = computedStatus;
+  }
 
   // Authorization check
   if (session.role === "EXAMINER" && exam.creator_id !== session.id) {

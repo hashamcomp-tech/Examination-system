@@ -17,6 +17,7 @@ export default function NewExamPage() {
     title: "", description: "", instructions: "", duration: 60, totalMarks: 100,
     passingMarks: 40, maxAttempts: 1, multipleSelectGrading: "ALL_OR_NOTHING",
     randomizeQuestions: true, randomizeOptions: true, classroomId: "",
+    scheduledStart: "", scheduledEnd: "",
   });
 
   React.useEffect(() => {
@@ -72,6 +73,26 @@ export default function NewExamPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Max Attempts</label>
               <Input type="number" value={form.maxAttempts} onChange={e => update("maxAttempts", parseInt(e.target.value))} min={1} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled Start (Optional)</label>
+              <Input
+                type="datetime-local"
+                value={form.scheduledStart ? form.scheduledStart.slice(0, 16) : ""}
+                onChange={e => update("scheduledStart", e.target.value ? new Date(e.target.value).toISOString() : "")}
+              />
+              <p className="text-xs text-gray-500 mt-1">When students can begin taking this exam.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled End / Deadline (Optional)</label>
+              <Input
+                type="datetime-local"
+                value={form.scheduledEnd ? form.scheduledEnd.slice(0, 16) : ""}
+                onChange={e => update("scheduledEnd", e.target.value ? new Date(e.target.value).toISOString() : "")}
+              />
+              <p className="text-xs text-gray-500 mt-1">Once this time passes, the exam is marked Completed.</p>
             </div>
           </div>
           <div>
