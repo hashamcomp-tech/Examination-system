@@ -42,7 +42,8 @@ export default function LoginPage() {
         EXAMINER: "/examiner",
         CANDIDATE: "/candidate",
       };
-      router.push(dashboards[data.user.role] || "/candidate");
+      const target = dashboards[data.user.role] || "/candidate";
+      window.location.href = target;
     } catch {
       setError("Network error. Please try again.");
     } finally {
