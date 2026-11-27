@@ -12,10 +12,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!attempt) return Response.json({ error: "Attempt not found" }, { status: 404 });
   if (attempt.status !== "IN_PROGRESS") return Response.json({ error: "Attempt is not active" }, { status: 400 });
 
-  // Check deadline (server-side timing enforcement)
+  // Check deadline & exam end time (server-side timing enforcement)
   const now = new Date();
   const deadline = new Date(attempt.server_deadline);
-  if (now > deadline) {
+  const exam = db.prepare("SELECT scheduled_end FROM exams WHERE id = ?").get(attempt.exam_id) as any;
+  const examEnd = exam?.scheduled_end ? new Date(exam.scheduled_end) : null;
+  if (now > deadline || (examEnd && now >= examEnd)) {
     return Response.json({ error: "Time has expired" }, { status: 400 });
   }
 

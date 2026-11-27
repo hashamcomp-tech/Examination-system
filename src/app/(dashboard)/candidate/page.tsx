@@ -11,9 +11,9 @@ export default function CandidateDashboard() {
 
   useEffect(() => { fetch("/api/exams").then(r => r.json()).then(d => setExams(d.exams || [])); }, []);
 
-  const available = exams.filter(e => ["PUBLISHED", "ONGOING"].includes(e.status) && (!e.my_attempts || e.my_attempts < e.max_attempts));
+  const available = exams.filter(e => e.status === "ONGOING" && (!e.my_attempts || e.my_attempts < e.max_attempts));
   const inProgress = exams.filter(e => e.enrollment_status === "STARTED");
-  const completed = exams.filter(e => e.enrollment_status === "COMPLETED" || e.my_attempts > 0);
+  const completed = exams.filter(e => e.status === "COMPLETED" || e.enrollment_status === "COMPLETED" || (e.my_attempts && e.my_attempts >= e.max_attempts));
 
   return (
     <div>

@@ -34,19 +34,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (exam?.creator_id !== session.id) return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Check if attempt is expired and auto-finalize
+  const exam = db.prepare("SELECT * FROM exams WHERE id = ?").get(attempt.exam_id) as any;
+
+  // Check if attempt is expired OR exam end time has passed and auto-finalize
   const now = new Date();
   const deadline = new Date(attempt.server_deadline);
-  if (attempt.status === "IN_PROGRESS" && now > deadline) {
+  const examEnd = exam?.scheduled_end ? new Date(exam.scheduled_end) : null;
+  const isTimeUp = now > deadline || (examEnd && now >= examEnd);
+
+  if (attempt.status === "IN_PROGRESS" && isTimeUp) {
+    const finalSubmitTime = (examEnd && examEnd < deadline ? examEnd : deadline).toISOString();
     db.prepare("UPDATE attempts SET status = 'AUTO_SUBMITTED', submitted_at = ? WHERE id = ?")
-      .run(deadline.toISOString(), id);
+      .run(finalSubmitTime, id);
     attempt.status = "AUTO_SUBMITTED";
-    attempt.submitted_at = deadline.toISOString();
+    attempt.submitted_at = finalSubmitTime;
     // Auto-grade
     autoGradeAttempt(db, id);
   }
-
-  const exam = db.prepare("SELECT * FROM exams WHERE id = ?").get(attempt.exam_id) as any;
 
   // Get questions in order
   const questionOrder: string[] = attempt.question_order ? JSON.parse(attempt.question_order) : [];
@@ -82,7 +86,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   ).all(attempt.exam_id);
 
   const serverTime = new Date().toISOString();
-  const remainingSeconds = Math.max(0, Math.floor((deadline.getTime() - now.getTime()) / 1000));
+  let effectiveDeadline = deadline;
+  if (examEnd && examEnd < deadline) {
+    effectiveDeadline = examEnd;
+  }
+  const remainingSeconds = Math.max(0, Math.floor((effectiveDeadline.getTime() - now.getTime()) / 1000));
 
   return Response.json({
     attempt,

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import getDb from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { v4 as uuid } from "uuid";
+import { computeExamStatus } from "../exams/route";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const s = [...arr];
@@ -33,20 +34,28 @@ export async function POST(request: NextRequest) {
 
   // For non-sandbox: validate enrollment and exam availability
   if (!isSandbox) {
-    if (!["PUBLISHED", "ONGOING"].includes(exam.status)) {
-      return Response.json({ error: "Exam is not available" }, { status: 400 });
+    const currentStatus = computeExamStatus(exam);
+    if (currentStatus === "COMPLETED") {
+      return Response.json({ error: "Exam window has closed and the exam is completed." }, { status: 400 });
+    }
+    if (currentStatus === "PUBLISHED") {
+      const startTimeStr = exam.scheduled_start ? new Date(exam.scheduled_start).toLocaleString() : "the scheduled start time";
+      return Response.json({ error: `Exam has not started yet. It will open at ${startTimeStr}.` }, { status: 400 });
+    }
+    if (currentStatus !== "ONGOING") {
+      return Response.json({ error: "Exam is not currently active for participation." }, { status: 400 });
     }
 
     const enrollment = db.prepare("SELECT * FROM enrollments WHERE exam_id = ? AND user_id = ?").get(examId, session.id) as any;
     if (!enrollment) return Response.json({ error: "Not enrolled in this exam" }, { status: 403 });
 
-    // Check scheduling window
+    // Double check scheduling window against current time
     const now = new Date();
     if (exam.scheduled_start && new Date(exam.scheduled_start) > now) {
-      return Response.json({ error: "Exam has not started yet" }, { status: 400 });
+      return Response.json({ error: `Exam has not started yet. It will open at ${new Date(exam.scheduled_start).toLocaleString()}.` }, { status: 400 });
     }
-    if (exam.scheduled_end && new Date(exam.scheduled_end) < now) {
-      return Response.json({ error: "Exam window has closed" }, { status: 400 });
+    if (exam.scheduled_end && new Date(exam.scheduled_end) <= now) {
+      return Response.json({ error: "Exam window has closed and the exam is completed." }, { status: 400 });
     }
 
     // Check max attempts

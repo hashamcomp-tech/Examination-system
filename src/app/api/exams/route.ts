@@ -8,29 +8,32 @@ export function computeExamStatus(exam: any): "DRAFT" | "PUBLISHED" | "ONGOING" 
 
   const now = new Date();
 
-  // 1. If scheduled_end is provided:
+  // 1. If scheduled_end has passed -> COMPLETED (time is up!)
   if (exam.scheduled_end) {
     const end = new Date(exam.scheduled_end);
-    if (!isNaN(end.getTime())) {
-      return now > end ? "COMPLETED" : "ONGOING";
+    if (!isNaN(end.getTime()) && now >= end) {
+      return "COMPLETED";
     }
   }
 
-  // 2. If scheduled_start is provided:
+  // 2. If scheduled_start is in the future -> PUBLISHED (scheduled, not yet started!)
   if (exam.scheduled_start) {
     const start = new Date(exam.scheduled_start);
     if (!isNaN(start.getTime())) {
       if (now < start) {
         return "PUBLISHED";
       }
-      if (exam.duration) {
+      // If no scheduled_end, duration determines window from start:
+      if (!exam.scheduled_end && exam.duration) {
         const end = new Date(start.getTime() + exam.duration * 60 * 1000);
-        return now > end ? "COMPLETED" : "ONGOING";
+        if (now >= end) {
+          return "COMPLETED";
+        }
       }
     }
   }
 
-  // 3. Published and still has time remaining (open window):
+  // 3. Otherwise: start time has arrived (or open start) and end time has not passed -> ONGOING
   return "ONGOING";
 }
 

@@ -26,13 +26,23 @@ export default function CandidateExamsPage() {
                       {exam.duration} min · {exam.total_marks} marks · Attempts: {exam.my_attempts || 0}/{exam.max_attempts}
                     </p>
                   </div>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center flex-wrap">
                     {exam.classroom_name && (
                       <Badge variant="outline" className="border-blue-200 text-blue-800 bg-blue-50/80 font-medium text-xs">
                         Class: {exam.classroom_name}
                       </Badge>
                     )}
-                    <Badge variant={exam.status === "COMPLETED" ? "purple" : exam.status === "ONGOING" ? "success" : "default"}>{exam.status}</Badge>
+                    {exam.status === "COMPLETED" ? (
+                      <Badge variant="purple" className="text-xs">COMPLETED</Badge>
+                    ) : exam.status === "PUBLISHED" ? (
+                      <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs">
+                        SCHEDULED
+                      </Badge>
+                    ) : (
+                      <Badge variant="success" className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
+                        ACTIVE / ONGOING
+                      </Badge>
+                    )}
                     {exam.enrollment_status && <Badge variant="secondary">{exam.enrollment_status}</Badge>}
                   </div>
                 </CardContent>
