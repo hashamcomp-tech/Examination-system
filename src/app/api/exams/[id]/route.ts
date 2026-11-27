@@ -29,8 +29,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       const isMember = db.prepare("SELECT id FROM classroom_members WHERE classroom_id = ? AND user_id = ?").get(exam.classroom_id, session.id);
       if (!isMember) return Response.json({ error: "Forbidden: You are not a member of this classroom" }, { status: 403 });
     }
+    // Auto-enroll candidate if not yet recorded
     const enrolled = db.prepare("SELECT id FROM enrollments WHERE exam_id = ? AND user_id = ?").get(id, session.id);
-    if (!enrolled) return Response.json({ error: "Not enrolled" }, { status: 403 });
+    if (!enrolled) {
+      const { v4: uuid } = await import("uuid");
+      db.prepare("INSERT OR IGNORE INTO enrollments (id, exam_id, user_id) VALUES (?, ?, ?)").run(uuid(), id, session.id);
+    }
   }
 
   // Get questions with options

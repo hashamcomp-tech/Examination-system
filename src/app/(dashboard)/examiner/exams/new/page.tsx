@@ -35,6 +35,127 @@ function combineDateAndTime(dateStr: string, timeStr: string): string | null {
   }
 }
 
+function ScheduleTimePicker({
+  label,
+  subLabel,
+  value,
+  onChange,
+}: {
+  label: string;
+  subLabel?: string;
+  value?: string | null;
+  onChange: (iso: string) => void;
+}) {
+  const parsed = parseIsoToDateAndTime(value);
+  const hour = parsed.time ? parseInt(parsed.time.split(":")[0] || "0", 10) : 0;
+  const isPM = hour >= 12;
+  const dateObj = value ? new Date(value) : null;
+  const isPast = dateObj ? dateObj < new Date() : false;
+
+  const handleDateChange = (date: string) => {
+    const time = parsed.time || "12:00";
+    onChange(combineDateAndTime(date, time) || "");
+  };
+
+  const handleTimeChange = (time: string) => {
+    const date = parsed.date || new Date().toISOString().slice(0, 10);
+    onChange(combineDateAndTime(date, time) || "");
+  };
+
+  const toggleAmPm = (targetAmPm: "AM" | "PM") => {
+    if (!parsed.time && !parsed.date) {
+      const today = new Date().toISOString().slice(0, 10);
+      const time = targetAmPm === "PM" ? "12:00" : "09:00";
+      onChange(combineDateAndTime(today, time) || "");
+      return;
+    }
+    const [h, m] = (parsed.time || "12:00").split(":");
+    let hNum = parseInt(h || "0", 10);
+    if (targetAmPm === "PM" && hNum < 12) {
+      hNum += 12;
+    } else if (targetAmPm === "AM" && hNum >= 12) {
+      hNum -= 12;
+    }
+    const newTime = `${String(hNum).padStart(2, "0")}:${m || "00"}`;
+    const date = parsed.date || new Date().toISOString().slice(0, 10);
+    onChange(combineDateAndTime(date, newTime) || "");
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div>
+          <Input
+            type="date"
+            value={parsed.date}
+            onChange={(e) => handleDateChange(e.target.value)}
+          />
+          <span className="text-[11px] text-gray-500 mt-0.5 block">Date</span>
+        </div>
+        <div>
+          <div className="flex gap-1.5 items-center">
+            <Input
+              type="time"
+              value={parsed.time}
+              onChange={(e) => handleTimeChange(e.target.value)}
+              className="flex-1"
+            />
+            <div className="flex rounded-md border border-gray-200 overflow-hidden shrink-0">
+              <button
+                type="button"
+                onClick={() => toggleAmPm("AM")}
+                className={`px-2 py-1 text-xs font-bold transition-colors ${
+                  parsed.time && !isPM
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                AM
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleAmPm("PM")}
+                className={`px-2 py-1 text-xs font-bold transition-colors ${
+                  parsed.time && isPM
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                PM
+              </button>
+            </div>
+          </div>
+          <span className="text-[11px] text-gray-500 mt-0.5 block">Time & AM/PM</span>
+        </div>
+      </div>
+
+      {/* Live Preview & Past-time Safety Warning */}
+      {value && dateObj && !isNaN(dateObj.getTime()) && (
+        <div className={`p-2 rounded-lg text-xs flex items-center justify-between gap-2 ${
+          isPast ? "bg-amber-50 text-amber-900 border border-amber-200" : "bg-blue-50/70 text-blue-900 border border-blue-100"
+        }`}>
+          <div>
+            <span className="font-semibold">{isPast ? "⚠️ Set to past: " : "📅 Scheduled: "}</span>
+            <span>{dateObj.toLocaleString()}</span>
+          </div>
+          {isPast && !isPM && (
+            <button
+              type="button"
+              onClick={() => toggleAmPm("PM")}
+              className="font-bold underline text-amber-800 hover:text-amber-950 shrink-0 text-[11px]"
+            >
+              Switch to PM
+            </button>
+          )}
+        </div>
+      )}
+
+      {subLabel && <p className="text-xs text-gray-500 mt-0.5">{subLabel}</p>}
+    </div>
+  );
+}
+
 export default function NewExamPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -103,67 +224,18 @@ export default function NewExamPage() {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled Start (Optional)</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Input
-                    type="date"
-                    value={parseIsoToDateAndTime(form.scheduledStart).date}
-                    onChange={e => {
-                      const parsed = parseIsoToDateAndTime(form.scheduledStart);
-                      const iso = combineDateAndTime(e.target.value, parsed.time);
-                      update("scheduledStart", iso || "");
-                    }}
-                  />
-                  <span className="text-[11px] text-gray-500 mt-0.5 block">Start Date</span>
-                </div>
-                <div>
-                  <Input
-                    type="time"
-                    value={parseIsoToDateAndTime(form.scheduledStart).time}
-                    onChange={e => {
-                      const parsed = parseIsoToDateAndTime(form.scheduledStart);
-                      const iso = combineDateAndTime(parsed.date || new Date().toISOString().slice(0, 10), e.target.value);
-                      update("scheduledStart", iso || "");
-                    }}
-                  />
-                  <span className="text-[11px] text-gray-500 mt-0.5 block">Start Time</span>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">When students can begin taking this exam.</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled End / Deadline (Optional)</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Input
-                    type="date"
-                    value={parseIsoToDateAndTime(form.scheduledEnd).date}
-                    onChange={e => {
-                      const parsed = parseIsoToDateAndTime(form.scheduledEnd);
-                      const iso = combineDateAndTime(e.target.value, parsed.time);
-                      update("scheduledEnd", iso || "");
-                    }}
-                  />
-                  <span className="text-[11px] text-gray-500 mt-0.5 block">End Date</span>
-                </div>
-                <div>
-                  <Input
-                    type="time"
-                    value={parseIsoToDateAndTime(form.scheduledEnd).time}
-                    onChange={e => {
-                      const parsed = parseIsoToDateAndTime(form.scheduledEnd);
-                      const iso = combineDateAndTime(parsed.date || new Date().toISOString().slice(0, 10), e.target.value);
-                      update("scheduledEnd", iso || "");
-                    }}
-                  />
-                  <span className="text-[11px] text-gray-500 mt-0.5 block">End Time</span>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Once this time passes, the exam is marked Completed.</p>
-            </div>
+            <ScheduleTimePicker
+              label="Scheduled Start (Optional)"
+              subLabel="When students can begin taking this exam."
+              value={form.scheduledStart}
+              onChange={(iso) => update("scheduledStart", iso)}
+            />
+            <ScheduleTimePicker
+              label="Scheduled End / Deadline (Optional)"
+              subLabel="Once this time passes, the exam is marked Completed."
+              value={form.scheduledEnd}
+              onChange={(iso) => update("scheduledEnd", iso)}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Target Classroom (Optional)</label>

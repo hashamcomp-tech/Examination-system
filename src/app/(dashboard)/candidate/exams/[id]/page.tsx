@@ -33,8 +33,8 @@ export default function CandidateExamDetailPage() {
   const isMaxAttemptsReached = data.my_attempts != null && data.my_attempts >= exam.max_attempts;
   const isCandidateCompleted = data.enrollment_status === "COMPLETED" || isMaxAttemptsReached;
 
-  // Strict check: only allow starting if exam is ONGOING, not completed by candidate, start time arrived, end time not passed, and attempts remain
-  const canStart = exam.status === "ONGOING" && !isCandidateCompleted && !isBeforeStart && !isAfterEnd;
+  // Strict check: only allow starting if exam is active, not completed by candidate, start time arrived, end time not passed, and attempts remain
+  const canStart = (exam.status === "ONGOING" || (!isBeforeStart && !isAfterEnd && exam.status !== "DRAFT")) && !isCandidateCompleted && !isBeforeStart && !isAfterEnd;
 
   const startExam = async () => {
     if (!canStart) return;

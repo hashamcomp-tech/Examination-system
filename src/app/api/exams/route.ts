@@ -19,17 +19,8 @@ export function computeExamStatus(exam: any): "DRAFT" | "PUBLISHED" | "ONGOING" 
   // 2. If scheduled_start is in the future -> PUBLISHED (scheduled, not yet started!)
   if (exam.scheduled_start) {
     const start = new Date(exam.scheduled_start);
-    if (!isNaN(start.getTime())) {
-      if (now < start) {
-        return "PUBLISHED";
-      }
-      // If no scheduled_end, duration determines window from start:
-      if (!exam.scheduled_end && exam.duration) {
-        const end = new Date(start.getTime() + exam.duration * 60 * 1000);
-        if (now >= end) {
-          return "COMPLETED";
-        }
-      }
+    if (!isNaN(start.getTime()) && now < start) {
+      return "PUBLISHED";
     }
   }
 
@@ -72,7 +63,7 @@ export async function GET(request: NextRequest) {
       att.status as my_attempt_status,
       att.grading_status as my_grading_status
       FROM exams e 
-      INNER JOIN enrollments en ON en.exam_id = e.id AND en.user_id = ?
+      LEFT JOIN enrollments en ON en.exam_id = e.id AND en.user_id = ?
       LEFT JOIN users u ON e.creator_id = u.id
       LEFT JOIN classrooms c ON e.classroom_id = c.id
       LEFT JOIN attempts att ON att.id = (
@@ -82,7 +73,15 @@ export async function GET(request: NextRequest) {
         ORDER BY a2.attempt_number DESC LIMIT 1
       )
       WHERE e.is_sandbox = 0 AND e.status != 'DRAFT'
-      ORDER BY e.scheduled_start ASC`).all(session.id, session.id, session.id);
+        AND (
+          en.user_id IS NOT NULL 
+          OR e.classroom_id IS NULL
+          OR (
+            e.classroom_id IN (SELECT classroom_id FROM classroom_members WHERE user_id = ?)
+            AND e.classroom_id NOT IN (SELECT classroom_id FROM classroom_bans WHERE user_id = ?)
+          )
+        )
+      ORDER BY e.created_at DESC`).all(session.id, session.id, session.id, session.id, session.id);
   }
 
   // Compute status based on time: only exams whose time is up are COMPLETED, others with time remaining are ONGOING

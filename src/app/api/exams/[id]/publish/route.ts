@@ -29,13 +29,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   db.prepare("UPDATE exams SET status = 'PUBLISHED', updated_at = datetime('now') WHERE id = ?").run(id);
 
-  // If exam is assigned to a classroom, auto-enroll all students of that classroom
+  // Auto-enroll eligible students
+  const { v4: uuid } = await import("uuid");
+  const enrollStmt = db.prepare("INSERT OR IGNORE INTO enrollments (id, exam_id, user_id) VALUES (?, ?, ?)");
+
   if (exam.classroom_id) {
-    const { v4: uuid } = await import("uuid");
-    const members = db.prepare("SELECT user_id FROM classroom_members WHERE classroom_id = ?").all(exam.classroom_id) as any[];
-    const enrollStmt = db.prepare("INSERT OR IGNORE INTO enrollments (id, exam_id, user_id) VALUES (?, ?, ?)");
+    // If assigned to a classroom, auto-enroll all current non-banned members of that classroom
+    const members = db.prepare(`
+      SELECT cm.user_id FROM classroom_members cm 
+      WHERE cm.classroom_id = ? 
+        AND cm.user_id NOT IN (SELECT user_id FROM classroom_bans WHERE classroom_id = ?)
+    `).all(exam.classroom_id, exam.classroom_id) as any[];
     for (const m of members) {
       enrollStmt.run(uuid(), id, m.user_id);
+    }
+  } else {
+    // If public exam (no classroom restriction), auto-enroll all candidates
+    const candidates = db.prepare("SELECT id FROM users WHERE role = 'CANDIDATE'").all() as any[];
+    for (const c of candidates) {
+      enrollStmt.run(uuid(), id, c.id);
     }
   }
 
