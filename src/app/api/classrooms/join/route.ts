@@ -25,6 +25,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid class code. No classroom found with code: " + cleanCode }, { status: 404 });
   }
 
+  // Check if student is banned from this classroom
+  const isBanned = db.prepare("SELECT reason FROM classroom_bans WHERE classroom_id = ? AND user_id = ?").get(classroom.id, session.id) as any;
+  if (isBanned) {
+    return Response.json({
+      error: `You have been banned from joining this classroom by the instructor.${isBanned.reason ? ` Reason: ${isBanned.reason}` : ""}`
+    }, { status: 403 });
+  }
+
   // Check if already a member
   const existing = db.prepare("SELECT id FROM classroom_members WHERE classroom_id = ? AND user_id = ?").get(classroom.id, session.id);
   if (existing) {

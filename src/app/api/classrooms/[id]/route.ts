@@ -34,6 +34,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ORDER BY cm.joined_at DESC
   `).all(id);
 
+  // Banned students (visible to instructor & admin)
+  let bannedStudents: any[] = [];
+  if (isInstructor || session.role === "ADMIN") {
+    bannedStudents = db.prepare(`
+      SELECT u.id, u.name, u.email, cb.banned_at, cb.reason, b_user.name as banned_by_name
+      FROM classroom_bans cb
+      JOIN users u ON cb.user_id = u.id
+      LEFT JOIN users b_user ON cb.banned_by = b_user.id
+      WHERE cb.classroom_id = ?
+      ORDER BY cb.banned_at DESC
+    `).all(id);
+  }
+
   // Assigned exams
   let examsQuery = `
     SELECT e.*,
@@ -49,7 +62,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const exams = db.prepare(examsQuery).all(id);
 
-  return Response.json({ classroom, students, exams, isInstructor });
+  return Response.json({ classroom, students, bannedStudents, exams, isInstructor });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

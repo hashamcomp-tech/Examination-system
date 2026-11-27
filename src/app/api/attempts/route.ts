@@ -49,6 +49,17 @@ export async function POST(request: NextRequest) {
     const enrollment = db.prepare("SELECT * FROM enrollments WHERE exam_id = ? AND user_id = ?").get(examId, session.id) as any;
     if (!enrollment) return Response.json({ error: "Not enrolled in this exam" }, { status: 403 });
 
+    if (exam.classroom_id) {
+      const isBanned = db.prepare("SELECT reason FROM classroom_bans WHERE classroom_id = ? AND user_id = ?").get(exam.classroom_id, session.id) as any;
+      if (isBanned) {
+        return Response.json({ error: "You have been banned from the classroom for this exam." }, { status: 403 });
+      }
+      const isMember = db.prepare("SELECT id FROM classroom_members WHERE classroom_id = ? AND user_id = ?").get(exam.classroom_id, session.id);
+      if (!isMember) {
+        return Response.json({ error: "You are no longer an active member of this exam's classroom." }, { status: 403 });
+      }
+    }
+
     // Double check scheduling window against current time
     const now = new Date();
     if (exam.scheduled_start && new Date(exam.scheduled_start) > now) {

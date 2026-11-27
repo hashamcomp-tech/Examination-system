@@ -213,7 +213,31 @@ function initializeDatabase(db: Database.Database) {
       joined_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(classroom_id, user_id)
     );
+
+    CREATE TABLE IF NOT EXISTS classroom_bans (
+      id TEXT PRIMARY KEY,
+      classroom_id TEXT NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      banned_by TEXT NOT NULL REFERENCES users(id),
+      reason TEXT,
+      banned_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(classroom_id, user_id)
+    );
   `);
+
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS classroom_bans (
+        id TEXT PRIMARY KEY,
+        classroom_id TEXT NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        banned_by TEXT NOT NULL REFERENCES users(id),
+        reason TEXT,
+        banned_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(classroom_id, user_id)
+      );
+    `);
+  } catch {}
 
   try {
     db.exec("ALTER TABLE exams ADD COLUMN classroom_id TEXT REFERENCES classrooms(id)");
