@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  passwordHash  String
+  role          String    @default("CANDIDATE") // ADMIN, EXAMINER, CANDIDATE
+  avatar        String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  createdExams     Exam[]          @relation("ExamCreator")
+  enrollments      Enrollment[]
+  attempts         Attempt[]
+  announcements    Announcement[]  @relation("AnnouncementAuthor")
+  incidents        Incident[]
+  disputes         Dispute[]       @relation("DisputeCandidate")
+  disputeResolvers Dispute[]       @relation("DisputeResolver")
+  preferences      UserPreference?
+}
+
+model UserPreference {
+  id              String  @id @default(uuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme           String  @default("light") // light, dark, high-contrast
+  fontSize        String  @default("medium") // small, medium, large
+  layout          String  @default("sidebar") // sidebar, top-nav
+  questionDisplay String  @default("one-at-a-time") // one-at-a-time, all-at-once, paginated
+  showTimer       Boolean @default(true)
+  compactNav      Boolean @default(false)
+}
+
+model Exam {
+  id               String   @id @default(uuid())
+  title            String
+  description      String?
+  instructions     String?
+  creatorId        String
+  creator          User     @relation("ExamCreator", fields: [creatorId], references: [id])
+  status           String   @default("DRAFT") // DRAFT, PUBLISHED, ONGOING, COMPLETED
+  scheduledStart   DateTime?
+  scheduledEnd     DateTime?
+  duration         Int      // in minutes
+  totalMarks       Float
+  passingMarks     Float?
+  randomizeQuestions Boolean @default(false)
+  randomizeOptions   Boolean @default(false)
+  showResults      Boolean  @default(false)
+  allowReview      Boolean  @default(true)
+  multipleSelectGrading String @default("ALL_OR_NOTHING") // ALL_OR_NOTHING, PARTIAL, NEGATIVE
+  negativeMarkingPenalty Float @default(0)
+  maxAttempts      Int      @default(1)
+  isSandbox        Boolean  @default(false)
+  resultsPublished Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  examQuestions    ExamQuestion[]
+  enrollments      Enrollment[]
+  attempts         Attempt[]
+  announcements    Announcement[]
+  incidents        Incident[]
+  disputes         Dispute[]
+}
+
+model Question {
+  id            String   @id @default(uuid())
+  text          String
+  type          String   // MCQ_SINGLE, MCQ_MULTIPLE, WRITTEN
+  category      String?
+  topic         String?
+  difficulty    String   @default("MEDIUM") // EASY, MEDIUM, HARD
+  marks         Float
+  explanation   String?
+  creatorId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  options       QuestionOption[]
+  examQuestions ExamQuestion[]
+}
+
+model QuestionOption {
+  id          String   @id @default(uuid())
+  questionId  String
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text        String
+  isCorrect   Boolean  @default(false)
+  orderIndex  Int      @default(0)
+}
+
+model ExamQuestion {
+  id          String   @id @default(uuid())
+  examId      String
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    Question @relation(fields: [questionId], references: [id])
+  orderIndex  Int      @default(0)
+  marks       Float    // Can override question default marks
+
+  // Snapshot of question data at time of exam creation for active attempts
+  questionSnapshot String? // JSON snapshot
+
+  @@unique([examId, questionId])
+
+  // Relations
+  answers     Answer[]
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime @default(now())
+  status    String   @default("ENROLLED") // ENROLLED, STARTED, COMPLETED, WITHDRAWN
+
+  @@unique([examId, userId])
+}
+
+model Attempt {
+  id            String    @id @default(uuid())
+  examId        String
+  exam          Exam      @relation(fields: [examId], references: [id])
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  attemptNumber Int       @default(1)
+  status        String    @default("IN_PROGRESS") // IN_PROGRESS, SUBMITTED, AUTO_SUBMITTED, GRADED
+  startedAt     DateTime  @default(now())
+  submittedAt   DateTime?
+  serverDeadline DateTime  // Server-calculated deadline for timing enforcement
+  totalScore    Float?
+  maxScore      Float?
+  percentage    Float?
+  gradingStatus String    @default("PENDING") // PENDING, PARTIAL, COMPLETE
+  isSandbox     Boolean   @default(false)
+
+  // Question order snapshot (for randomization)
+  questionOrder String? // JSON array of question IDs in order shown
+
+  // Relations
+  answers       Answer[]
+  incidents     Incident[]
+  scratchpad    Scratchpad?
+
+  @@unique([examId, userId, attemptNumber])
+}
+
+model Answer {
+  id              String       @id @default(uuid())
+  attemptId       String
+  attempt         Attempt      @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  examQuestionId  String
+  examQuestion    ExamQuestion @relation(fields: [examQuestionId], references: [id])
+  
+  // For MCQ answers
+  selectedOptionIds String?    // JSON array of selected option IDs
+  
+  // For written answers
+  writtenResponse   String?
+  
+  status          String     @default("UNANSWERED") // UNANSWERED, ANSWERED, MARKED_FOR_REVIEW
+  
+  // Grading
+  isCorrect       Boolean?
+  marksAwarded    Float?
+  examinerFeedback String?
+  gradedAt        DateTime?
+  
+  savedAt         DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([attemptId, examQuestionId])
+}
+
+model Scratchpad {
+  id        String   @id @default(uuid())
+  attemptId String   @unique
+  attempt   Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  content   String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("AnnouncementAuthor", fields: [authorId], references: [id])
+  message   String
+  priority  String   @default("NORMAL") // NORMAL, IMPORTANT, URGENT
+  createdAt DateTime @default(now())
+}
+
+model Incident {
+  id          String   @id @default(uuid())
+  attemptId   String?
+  attempt     Attempt? @relation(fields: [attemptId], references: [id])
+  examId      String
+  exam        Exam     @relation(fields: [examId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String   // TAB_SWITCH, WINDOW_BLUR, FULLSCREEN_EXIT, CONNECTION_LOST, COPY_PASTE, REFRESH, MULTIPLE_LOGIN
+  description String?
+  severity    String   @default("LOW") // LOW, MEDIUM, HIGH
+  timestamp   DateTime @default(now())
+  
+  // Important: monitoring indicators are NOT conclusive evidence
+  isReviewed  Boolean  @default(false)
+  reviewNote  String?
+}
+
+model Dispute {
+  id          String   @id @default(uuid())
+  examId      String
+  exam        Exam     @relation(fields: [examId], references: [id])
+  candidateId String
+  candidate   User     @relation("DisputeCandidate", fields: [candidateId], references: [id])
+  type        String   // GRADING_ERROR, AMBIGUOUS_QUESTION, TECHNICAL_ISSUE, OTHER
+  subject     String
+  description String
+  evidence    String?
+  status      String   @default("OPEN") // OPEN, UNDER_REVIEW, RESOLVED, REJECTED
+  resolution  String?
+  resolverId  String?
+  resolver    User?    @relation("DisputeResolver", fields: [resolverId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model VerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  examId    String
+  userId    String
+  attemptId String
+  data      String   // JSON with score summary
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+}
