@@ -15,6 +15,7 @@ export default function UsersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "CANDIDATE" });
   const [loading, setLoading] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const loadUsers = () => {
@@ -48,8 +49,31 @@ export default function UsersPage() {
   };
 
   const toggleActive = async (user: any) => {
-    // Toggle user active status - for now just show toast
-    toast(`User ${user.is_active ? "deactivated" : "activated"}`, "info");
+    const nextState = !user.is_active;
+    const confirmMsg = nextState
+      ? `Activate account for ${user.name}? They will be allowed to log in.`
+      : `Are you sure you want to deactivate ${user.name}? They will be blocked from logging in.`;
+    if (!confirm(confirmMsg)) return;
+
+    setTogglingId(user.id);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, isActive: nextState }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast(data.message || `User account ${nextState ? "activated" : "deactivated"}`, "success");
+        loadUsers();
+      } else {
+        toast(data.error || "Failed to update user status", "error");
+      }
+    } catch {
+      toast("Network error updating user status", "error");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   return (
@@ -108,13 +132,32 @@ export default function UsersPage() {
             </tr></thead>
             <tbody>
               {filteredUsers.map(u => (
-                <tr key={u.id} className="border-b last:border-0 hover:bg-gray-50">
-                  <td className="py-3 font-medium">{u.name}</td>
+                <tr key={u.id} className={`border-b last:border-0 hover:bg-gray-50 transition-colors ${!u.is_active ? "bg-rose-50/20" : ""}`}>
+                  <td className="py-3 font-medium">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={u.is_active ? "text-gray-900" : "text-gray-500 line-through"}>{u.name}</span>
+                      {!u.is_active && (
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-300">
+                          Deactivated
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="py-3 text-gray-600">{u.email}</td>
                   <td className="py-3"><Badge variant={u.role === "ADMIN" ? "purple" : u.role === "EXAMINER" ? "default" : "secondary"}>{u.role}</Badge></td>
-                  <td className="py-3"><Badge variant={u.is_active ? "success" : "destructive"}>{u.is_active ? "Active" : "Inactive"}</Badge></td>
                   <td className="py-3">
-                    <Button size="sm" variant="ghost" onClick={() => toggleActive(u)}>
+                    <Badge variant={u.is_active ? "success" : "destructive"}>
+                      {u.is_active ? "Active" : "Deactivated"}
+                    </Badge>
+                  </td>
+                  <td className="py-3">
+                    <Button
+                      size="sm"
+                      variant={u.is_active ? "ghost" : "outline"}
+                      className={u.is_active ? "text-rose-700 hover:text-rose-800 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50 border-emerald-300 font-medium"}
+                      onClick={() => toggleActive(u)}
+                      loading={togglingId === u.id}
+                    >
                       {u.is_active ? "Deactivate" : "Activate"}
                     </Button>
                   </td>

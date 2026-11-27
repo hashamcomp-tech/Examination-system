@@ -31,7 +31,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const user = db.prepare("SELECT * FROM users WHERE email = ? AND is_active = 1").get(cleanEmail) as any;
+    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(cleanEmail) as any;
+    if (user && user.is_active === 0) {
+      return Response.json({
+        error: "Your account has been deactivated, contact the administrators.",
+        isDeactivated: true,
+      }, { status: 403 });
+    }
+
     let isValid = false;
     if (user) {
       isValid = await verifyPassword(password, user.password_hash);
