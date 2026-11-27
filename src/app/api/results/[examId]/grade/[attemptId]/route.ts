@@ -45,14 +45,32 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const answer = db.prepare("SELECT * FROM answers WHERE id = ?").get(grade.answerId) as any;
     if (!answer) continue;
 
-    const eq = db.prepare("SELECT marks FROM exam_questions WHERE id = ?").get(answer.exam_question_id) as any;
-    if (grade.marksAwarded > eq.marks) {
-      return Response.json({ error: `Marks for answer ${grade.answerId} exceed maximum (${eq.marks})` }, { status: 400 });
+    const eq = db.prepare(`
+      SELECT eq.marks, q.type FROM exam_questions eq 
+      JOIN questions q ON eq.question_id = q.id 
+      WHERE eq.id = ?
+    `).get(answer.exam_question_id) as any;
+    if (!eq) continue;
+
+    // MCQs are strictly auto-graded and unchangeable by the examiner
+    if (eq.type !== "WRITTEN") {
+      // Examiner may only leave qualitative feedback, not alter calculated marks
+      if (grade.feedback !== undefined) {
+        db.prepare("UPDATE answers SET examiner_feedback = ? WHERE id = ?")
+          .run(grade.feedback || null, grade.answerId);
+      }
+      continue;
     }
+
+    if (grade.marksAwarded > eq.marks) {
+      return Response.json({ error: `Marks for written answer exceed maximum (${eq.marks})` }, { status: 400 });
+    }
+
+    const marks = Math.max(0, Number(grade.marksAwarded) || 0);
 
     db.prepare(`UPDATE answers SET marks_awarded = ?, examiner_feedback = ?, 
       is_correct = ?, graded_at = datetime('now') WHERE id = ?`)
-      .run(grade.marksAwarded, grade.feedback || null, grade.marksAwarded > 0 ? 1 : 0, grade.answerId);
+      .run(marks, grade.feedback || null, marks > 0 ? 1 : 0, grade.answerId);
   }
 
   // Recalculate totals
