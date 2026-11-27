@@ -17,9 +17,43 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       AND status IN ('SUBMITTED','AUTO_SUBMITTED','GRADED') ORDER BY attempt_number DESC LIMIT 1`).get(examId, session.id) as any;
     if (!attempt) return Response.json({ error: "No completed attempt found" }, { status: 404 });
 
-    const answers = db.prepare(`SELECT a.*, eq.marks as max_marks, q.text as question_text, q.type as question_type
-      FROM answers a JOIN exam_questions eq ON a.exam_question_id = eq.id
-      JOIN questions q ON eq.question_id = q.id WHERE a.attempt_id = ?`).all(attempt.id);
+    const rawAnswers = db.prepare(`
+      SELECT 
+        a.id, a.attempt_id, a.exam_question_id, a.selected_option_ids, a.written_response, 
+        a.status, a.is_correct, a.marks_awarded, a.examiner_feedback, a.graded_at,
+        eq.marks as max_marks, eq.order_index, 
+        q.id as question_id, q.text as question_text, q.type as question_type, q.explanation
+      FROM answers a 
+      JOIN exam_questions eq ON a.exam_question_id = eq.id
+      JOIN questions q ON eq.question_id = q.id 
+      WHERE a.attempt_id = ?
+      ORDER BY eq.order_index ASC
+    `).all(attempt.id) as any[];
+
+    const answers = rawAnswers.map(ans => {
+      let selectedOptionIds: string[] = [];
+      try {
+        if (ans.selected_option_ids) {
+          const parsed = JSON.parse(ans.selected_option_ids);
+          selectedOptionIds = Array.isArray(parsed) ? parsed : [ans.selected_option_ids];
+        }
+      } catch {
+        selectedOptionIds = ans.selected_option_ids ? [ans.selected_option_ids] : [];
+      }
+
+      let options: any[] = [];
+      if (ans.question_type !== 'WRITTEN') {
+        options = db.prepare(
+          "SELECT id, text, is_correct, order_index FROM question_options WHERE question_id = ? ORDER BY order_index ASC"
+        ).all(ans.question_id);
+      }
+
+      return {
+        ...ans,
+        selectedOptionIds,
+        options,
+      };
+    });
 
     return Response.json({ exam, attempt, answers, type: "candidate" });
   }
