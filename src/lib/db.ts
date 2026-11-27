@@ -223,7 +223,25 @@ function initializeDatabase(db: Database.Database) {
       banned_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(classroom_id, user_id)
     );
+
+    CREATE TABLE IF NOT EXISTS login_rate_limits (
+      identifier TEXT PRIMARY KEY,
+      failed_attempts INTEGER NOT NULL DEFAULT 0,
+      locked_until TEXT,
+      last_attempt_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS login_rate_limits (
+        identifier TEXT PRIMARY KEY,
+        failed_attempts INTEGER NOT NULL DEFAULT 0,
+        locked_until TEXT,
+        last_attempt_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+  } catch {}
 
   try {
     db.exec(`
