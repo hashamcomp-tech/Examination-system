@@ -5,50 +5,97 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+function getCandidateExamStatus(exam: any): { label: string; className: string } {
+  const isCandidateCompleted = exam.enrollment_status === "COMPLETED" || (exam.my_attempts != null && exam.my_attempts >= exam.max_attempts);
+  const now = new Date();
+  const startTime = exam.scheduled_start ? new Date(exam.scheduled_start) : null;
+  const endTime = exam.scheduled_end ? new Date(exam.scheduled_end) : null;
+
+  // 1. If candidate has completed their exam attempt (even before the scheduled end!) -> COMPLETED
+  if (isCandidateCompleted) {
+    return {
+      label: "COMPLETED",
+      className: "bg-purple-100 text-purple-800 border-purple-200 font-semibold px-2.5 py-1 text-xs",
+    };
+  }
+
+  // 2. If the exam window has closed / expired for everyone -> CLOSED
+  if (exam.status === "COMPLETED" || (endTime && now >= endTime)) {
+    return {
+      label: "CLOSED",
+      className: "bg-gray-100 text-gray-700 border-gray-200 font-medium px-2.5 py-1 text-xs",
+    };
+  }
+
+  // 3. If candidate is currently inside an active attempt -> IN PROGRESS
+  if (exam.enrollment_status === "STARTED") {
+    return {
+      label: "IN PROGRESS",
+      className: "bg-blue-100 text-blue-800 border-blue-300 font-semibold px-2.5 py-1 text-xs",
+    };
+  }
+
+  // 4. If exam start time has not arrived yet -> SCHEDULED
+  if (exam.status === "PUBLISHED" || (startTime && now < startTime)) {
+    return {
+      label: "SCHEDULED",
+      className: "bg-amber-100 text-amber-800 border-amber-300 font-semibold px-2.5 py-1 text-xs",
+    };
+  }
+
+  // 5. Otherwise: exam is open and candidate has not started yet -> ACTIVE
+  return {
+    label: "ACTIVE",
+    className: "bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold px-2.5 py-1 text-xs",
+  };
+}
+
 export default function CandidateExamsPage() {
   const [exams, setExams] = useState<any[]>([]);
-  useEffect(() => { fetch("/api/exams").then(r => r.json()).then(d => setExams(d.exams || [])); }, []);
+  useEffect(() => {
+    fetch("/api/exams")
+      .then((r) => r.json())
+      .then((d) => setExams(d.exams || []));
+  }, []);
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">My Examinations</h1>
       {exams.length === 0 ? (
-        <Card><CardContent className="p-12 text-center text-gray-500">No exams assigned.</CardContent></Card>
+        <Card>
+          <CardContent className="p-12 text-center text-gray-500">No exams assigned.</CardContent>
+        </Card>
       ) : (
         <div className="grid gap-4">
-          {exams.map(exam => (
-            <Link key={exam.id} href={`/candidate/exams/${exam.id}`}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{exam.title}</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {exam.duration} min · {exam.total_marks} marks · Attempts: {exam.my_attempts || 0}/{exam.max_attempts}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 items-center flex-wrap">
-                    {exam.classroom_name && (
-                      <Badge variant="outline" className="border-blue-200 text-blue-800 bg-blue-50/80 font-medium text-xs">
-                        Class: {exam.classroom_name}
+          {exams.map((exam) => {
+            const statusInfo = getCandidateExamStatus(exam);
+
+            return (
+              <Link key={exam.id} href={`/candidate/exams/${exam.id}`}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardContent className="p-6 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{exam.title}</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {exam.duration} min · {exam.total_marks} marks · Attempts: {exam.my_attempts || 0}/{exam.max_attempts}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 items-center flex-wrap">
+                      {exam.classroom_name && (
+                        <Badge variant="outline" className="border-blue-200 text-blue-800 bg-blue-50/80 font-medium text-xs">
+                          Class: {exam.classroom_name}
+                        </Badge>
+                      )}
+                      {/* Strictly ONE unified status badge */}
+                      <Badge className={statusInfo.className}>
+                        {statusInfo.label}
                       </Badge>
-                    )}
-                    {exam.status === "COMPLETED" ? (
-                      <Badge variant="purple" className="text-xs">COMPLETED</Badge>
-                    ) : exam.status === "PUBLISHED" ? (
-                      <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs">
-                        SCHEDULED
-                      </Badge>
-                    ) : (
-                      <Badge variant="success" className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
-                        ACTIVE / ONGOING
-                      </Badge>
-                    )}
-                    {exam.enrollment_status && <Badge variant="secondary">{exam.enrollment_status}</Badge>}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

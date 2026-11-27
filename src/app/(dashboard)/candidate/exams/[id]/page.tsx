@@ -31,9 +31,10 @@ export default function CandidateExamDetailPage() {
   const isBeforeStart = startTime ? now < startTime : false;
   const isAfterEnd = (endTime ? now >= endTime : false) || exam.status === "COMPLETED";
   const isMaxAttemptsReached = data.my_attempts != null && data.my_attempts >= exam.max_attempts;
+  const isCandidateCompleted = data.enrollment_status === "COMPLETED" || isMaxAttemptsReached;
 
-  // Strict check: only allow starting if exam is ONGOING, start time arrived, end time not passed, and attempts remain
-  const canStart = exam.status === "ONGOING" && !isBeforeStart && !isAfterEnd && !isMaxAttemptsReached;
+  // Strict check: only allow starting if exam is ONGOING, not completed by candidate, start time arrived, end time not passed, and attempts remain
+  const canStart = exam.status === "ONGOING" && !isCandidateCompleted && !isBeforeStart && !isAfterEnd;
 
   const startExam = async () => {
     if (!canStart) return;
@@ -65,17 +66,21 @@ export default function CandidateExamDetailPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <CardTitle className="text-2xl font-bold text-gray-900">{exam.title}</CardTitle>
             <div>
-              {isAfterEnd ? (
-                <Badge variant="purple" className="px-3 py-1 font-semibold text-xs">
-                  COMPLETED (CLOSED)
+              {isCandidateCompleted ? (
+                <Badge className="bg-purple-100 text-purple-800 border-purple-200 px-3 py-1 font-semibold text-xs">
+                  COMPLETED
+                </Badge>
+              ) : isAfterEnd ? (
+                <Badge className="bg-gray-100 text-gray-700 border-gray-200 px-3 py-1 font-semibold text-xs">
+                  CLOSED
                 </Badge>
               ) : isBeforeStart ? (
                 <Badge className="bg-amber-100 text-amber-800 border-amber-300 px-3 py-1 font-semibold text-xs">
-                  SCHEDULED (NOT STARTED)
+                  SCHEDULED
                 </Badge>
               ) : (
                 <Badge variant="success" className="bg-emerald-100 text-emerald-800 border-emerald-300 px-3 py-1 font-semibold text-xs">
-                  ACTIVE / ONGOING
+                  ACTIVE
                 </Badge>
               )}
             </div>
@@ -131,7 +136,22 @@ export default function CandidateExamDetailPage() {
 
           {/* Action / Participation Gate */}
           <div className="pt-4 border-t flex flex-col items-center justify-center">
-            {isBeforeStart ? (
+            {isCandidateCompleted ? (
+              <div className="text-center p-5 bg-purple-50 border border-purple-200 rounded-xl max-w-md w-full">
+                <CheckCircle2 className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                <h4 className="font-bold text-purple-900 text-base">You Have Completed This Exam</h4>
+                <p className="text-xs text-purple-700 mt-1 leading-relaxed">
+                  Your submission has been recorded. You can view your marks and solution review in the Results section once published.
+                </p>
+                <div className="mt-4">
+                  <Link href="/candidate/results">
+                    <Button variant="outline" size="sm" className="border-purple-300 text-purple-900 hover:bg-purple-100">
+                      View My Results
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ) : isBeforeStart ? (
               <div className="text-center p-5 bg-amber-50 border border-amber-200 rounded-xl max-w-md w-full">
                 <Clock className="h-8 w-8 text-amber-600 mx-auto mb-2" />
                 <h4 className="font-bold text-amber-900 text-base">This exam has not started yet</h4>
@@ -143,18 +163,10 @@ export default function CandidateExamDetailPage() {
             ) : isAfterEnd ? (
               <div className="text-center p-5 bg-rose-50 border border-rose-200 rounded-xl max-w-md w-full">
                 <AlertTriangle className="h-8 w-8 text-rose-600 mx-auto mb-2" />
-                <h4 className="font-bold text-rose-900 text-base">This examination is completed</h4>
+                <h4 className="font-bold text-rose-900 text-base">This examination has closed</h4>
                 <p className="text-xs text-rose-700 mt-1 leading-relaxed">
                   The scheduled end time was <strong>{endTime ? endTime.toLocaleString() : "expired"}</strong>.
                   Submissions are closed and no further participation is permitted.
-                </p>
-              </div>
-            ) : isMaxAttemptsReached ? (
-              <div className="text-center p-5 bg-gray-50 border border-gray-200 rounded-xl max-w-md w-full">
-                <CheckCircle2 className="h-8 w-8 text-gray-500 mx-auto mb-2" />
-                <h4 className="font-bold text-gray-900 text-base">Maximum Attempts Used</h4>
-                <p className="text-xs text-gray-500 mt-1">
-                  You have already submitted all allowed attempts ({exam.max_attempts}/{exam.max_attempts}) for this exam.
                 </p>
               </div>
             ) : canStart ? (
