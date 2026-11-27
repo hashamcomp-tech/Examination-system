@@ -15,6 +15,33 @@ import {
   CheckCircle2, HelpCircle, FileText, CheckSquare, Radio, Sparkles, ChevronDown, ChevronUp, School
 } from "lucide-react";
 
+function parseIsoToDateAndTime(isoString?: string | null): { date: string; time: string } {
+  if (!isoString) return { date: "", time: "" };
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return { date: "", time: "" };
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return { date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` };
+  } catch {
+    return { date: "", time: "" };
+  }
+}
+
+function combineDateAndTime(dateStr: string, timeStr: string): string | null {
+  if (!dateStr) return null;
+  const time = timeStr || "00:00";
+  try {
+    const d = new Date(`${dateStr}T${time}:00`);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  } catch {
+    return null;
+  }
+}
+
 export default function ExamDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -295,14 +322,65 @@ export default function ExamDetailPage() {
                 <Input type="number" value={exam.max_attempts} onChange={e => update("max_attempts", parseInt(e.target.value))} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled Start</label>
-                <Input type="datetime-local" value={exam.scheduled_start?.slice(0, 16) || ""} onChange={e => update("scheduled_start", e.target.value ? new Date(e.target.value).toISOString() : null)} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Input
+                      type="date"
+                      value={parseIsoToDateAndTime(exam.scheduled_start).date}
+                      onChange={e => {
+                        const parsed = parseIsoToDateAndTime(exam.scheduled_start);
+                        const iso = combineDateAndTime(e.target.value, parsed.time);
+                        update("scheduled_start", iso);
+                      }}
+                    />
+                    <span className="text-[11px] text-gray-500 mt-0.5 block">Start Date</span>
+                  </div>
+                  <div>
+                    <Input
+                      type="time"
+                      value={parseIsoToDateAndTime(exam.scheduled_start).time}
+                      onChange={e => {
+                        const parsed = parseIsoToDateAndTime(exam.scheduled_start);
+                        const iso = combineDateAndTime(parsed.date || new Date().toISOString().slice(0, 10), e.target.value);
+                        update("scheduled_start", iso);
+                      }}
+                    />
+                    <span className="text-[11px] text-gray-500 mt-0.5 block">Start Time</span>
+                  </div>
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled End</label>
-                <Input type="datetime-local" value={exam.scheduled_end?.slice(0, 16) || ""} onChange={e => update("scheduled_end", e.target.value ? new Date(e.target.value).toISOString() : null)} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled End / Deadline</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Input
+                      type="date"
+                      value={parseIsoToDateAndTime(exam.scheduled_end).date}
+                      onChange={e => {
+                        const parsed = parseIsoToDateAndTime(exam.scheduled_end);
+                        const iso = combineDateAndTime(e.target.value, parsed.time);
+                        update("scheduled_end", iso);
+                      }}
+                    />
+                    <span className="text-[11px] text-gray-500 mt-0.5 block">End Date</span>
+                  </div>
+                  <div>
+                    <Input
+                      type="time"
+                      value={parseIsoToDateAndTime(exam.scheduled_end).time}
+                      onChange={e => {
+                        const parsed = parseIsoToDateAndTime(exam.scheduled_end);
+                        const iso = combineDateAndTime(parsed.date || new Date().toISOString().slice(0, 10), e.target.value);
+                        update("scheduled_end", iso);
+                      }}
+                    />
+                    <span className="text-[11px] text-gray-500 mt-0.5 block">End Time</span>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -8,6 +8,33 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 
+function parseIsoToDateAndTime(isoString?: string | null): { date: string; time: string } {
+  if (!isoString) return { date: "", time: "" };
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return { date: "", time: "" };
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return { date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` };
+  } catch {
+    return { date: "", time: "" };
+  }
+}
+
+function combineDateAndTime(dateStr: string, timeStr: string): string | null {
+  if (!dateStr) return null;
+  const time = timeStr || "00:00";
+  try {
+    const d = new Date(`${dateStr}T${time}:00`);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  } catch {
+    return null;
+  }
+}
+
 export default function NewExamPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -78,20 +105,63 @@ export default function NewExamPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled Start (Optional)</label>
-              <Input
-                type="datetime-local"
-                value={form.scheduledStart ? form.scheduledStart.slice(0, 16) : ""}
-                onChange={e => update("scheduledStart", e.target.value ? new Date(e.target.value).toISOString() : "")}
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Input
+                    type="date"
+                    value={parseIsoToDateAndTime(form.scheduledStart).date}
+                    onChange={e => {
+                      const parsed = parseIsoToDateAndTime(form.scheduledStart);
+                      const iso = combineDateAndTime(e.target.value, parsed.time);
+                      update("scheduledStart", iso || "");
+                    }}
+                  />
+                  <span className="text-[11px] text-gray-500 mt-0.5 block">Start Date</span>
+                </div>
+                <div>
+                  <Input
+                    type="time"
+                    value={parseIsoToDateAndTime(form.scheduledStart).time}
+                    onChange={e => {
+                      const parsed = parseIsoToDateAndTime(form.scheduledStart);
+                      const iso = combineDateAndTime(parsed.date || new Date().toISOString().slice(0, 10), e.target.value);
+                      update("scheduledStart", iso || "");
+                    }}
+                  />
+                  <span className="text-[11px] text-gray-500 mt-0.5 block">Start Time</span>
+                </div>
+              </div>
               <p className="text-xs text-gray-500 mt-1">When students can begin taking this exam.</p>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled End / Deadline (Optional)</label>
-              <Input
-                type="datetime-local"
-                value={form.scheduledEnd ? form.scheduledEnd.slice(0, 16) : ""}
-                onChange={e => update("scheduledEnd", e.target.value ? new Date(e.target.value).toISOString() : "")}
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Input
+                    type="date"
+                    value={parseIsoToDateAndTime(form.scheduledEnd).date}
+                    onChange={e => {
+                      const parsed = parseIsoToDateAndTime(form.scheduledEnd);
+                      const iso = combineDateAndTime(e.target.value, parsed.time);
+                      update("scheduledEnd", iso || "");
+                    }}
+                  />
+                  <span className="text-[11px] text-gray-500 mt-0.5 block">End Date</span>
+                </div>
+                <div>
+                  <Input
+                    type="time"
+                    value={parseIsoToDateAndTime(form.scheduledEnd).time}
+                    onChange={e => {
+                      const parsed = parseIsoToDateAndTime(form.scheduledEnd);
+                      const iso = combineDateAndTime(parsed.date || new Date().toISOString().slice(0, 10), e.target.value);
+                      update("scheduledEnd", iso || "");
+                    }}
+                  />
+                  <span className="text-[11px] text-gray-500 mt-0.5 block">End Time</span>
+                </div>
+              </div>
               <p className="text-xs text-gray-500 mt-1">Once this time passes, the exam is marked Completed.</p>
             </div>
           </div>
